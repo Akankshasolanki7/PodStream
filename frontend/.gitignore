@@ -61,6 +61,8 @@ debug.log
 
 # Binaries
 *.exe
-*.dll
+*.dll 
 *.so
 *.dylib
+
+.vercel

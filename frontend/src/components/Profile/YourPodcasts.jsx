@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import PodcastCard from '../PodcastCard/PodcastCard';
+import { API_BASE_URL } from '../../config/api.js';
 
 const YourPodcasts = () => {
   const [Podcasts, setPodcasts] = useState();
@@ -9,7 +10,7 @@ const YourPodcasts = () => {
   useEffect(() => {
     const fetch = async () => {
       try {
-        const res = await axios.get('http://localhost:5000/api/v1/get-user-podcasts', {
+        const res = await axios.get(`${API_BASE_URL}/get-user-podcasts`, {
           withCredentials: true,
         });
         setPodcasts(res.data.data);

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { playerActions } from '../../store/player';
+import { getImageUrl, getAudioUrl } from '../../utils/urlHelpers.js';
 
 const PodcastCard = ({ items }) => {
   const dispatch = useDispatch();
@@ -17,8 +18,8 @@ const PodcastCard = ({ items }) => {
     console.log("Play button clicked:", items);
 
     dispatch(playerActions.setDiv());
-    dispatch(playerActions.changeImage(`http://localhost:5000/${items.frontImage}`));
-    dispatch(playerActions.changeSong(`http://localhost:5000/${items.audioFile}`));
+    dispatch(playerActions.changeImage(getImageUrl(items.frontImage)));
+    dispatch(playerActions.changeSong(getAudioUrl(items.audioFile)));
   };
 
   const toggleExpansion = (e) => {
@@ -76,7 +77,7 @@ const PodcastCard = ({ items }) => {
                 <div className="absolute inset-0 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 bg-[length:200%_100%] animate-pulse" />
               )}
               <img
-                src={`http://localhost:5000/${items.frontImage}`}
+                src={getImageUrl(items.frontImage)}
                 alt="Podcast Thumbnail"
                 className={`max-w-full max-h-full object-contain transition-all duration-500 ${
                   imageLoaded ? 'opacity-100' : 'opacity-0'

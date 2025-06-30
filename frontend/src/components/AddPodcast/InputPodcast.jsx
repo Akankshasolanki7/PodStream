@@ -1,83 +1,54 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import { toast, ToastContainer } from 'react-toastify';
-import { FiUpload, FiMic, FiType, FiAlignLeft, FiList, FiX } from 'react-icons/fi';
-import { motion } from 'framer-motion';
+import { FiMic, FiType, FiAlignLeft, FiList, FiSave, FiLoader, FiCheck, FiImage, FiMusic } from 'react-icons/fi';
+import { motion, AnimatePresence } from 'framer-motion';
 import 'react-toastify/dist/ReactToastify.css';
-import { useRef } from 'react';
+import { API_BASE_URL } from '../../config/api.js';
+import AdvancedFileUpload from '../FileUpload/AdvancedFileUpload';
+import LoadingSkeleton from '../UI/LoadingSkeleton';
 
 const InputPodcast = () => {
-  const [frontImage, setFrontImage] = useState(null);
-    const fileInputRef = useRef(null);
-      const triggerFileSelect = () => {
-    fileInputRef.current.click();
-  };
-  const [audioFile, setAudioFile] = useState(null);
-  const [dragging, setDragging] = useState(false);
+  const [frontImageUrl, setFrontImageUrl] = useState(null);
+  const [audioFileUrl, setAudioFileUrl] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState({ image: 0, audio: 0 });
+  const [uploadStatus, setUploadStatus] = useState({ image: 'idle', audio: 'idle' });
   const [inputs, setInputs] = useState({
     title: '',
     description: '',
     category: '',
+    tags: '',
+  });
+  const [previewData, setPreviewData] = useState({
+    imageFile: null,
+    audioFile: null,
+    audioDuration: null
   });
 
-  const handleChangeImage = (e) => {
-    const file = e.target.files[0];
-    if (file && file.type.startsWith('image/')) {
-      setFrontImage(file);
-      toast.success('Image selected successfully');
-    } else {
-      toast.error('Please select a valid image file (JPEG, PNG)');
-      e.target.value = '';
-    }
+  const handleImageUpload = (url, file) => {
+    setFrontImageUrl(url);
+    setUploadStatus(prev => ({ ...prev, image: 'success' }));
+    setPreviewData(prev => ({ ...prev, imageFile: file }));
+    toast.success('Image uploaded successfully');
   };
 
-  const handleDragEnter = (e) => {
-    e.preventDefault();
-    setDragging(true);
-  };
+  const handleAudioUpload = (url, file) => {
+    setAudioFileUrl(url);
+    setUploadStatus(prev => ({ ...prev, audio: 'success' }));
+    setPreviewData(prev => ({ ...prev, audioFile: file }));
 
-  const handleDragLeave = (e) => {
-    e.preventDefault();
-    setDragging(false);
-  };
+    // Get audio duration
+    const audio = new Audio();
+    audio.onloadedmetadata = () => {
+      setPreviewData(prev => ({
+        ...prev,
+        audioDuration: Math.round(audio.duration)
+      }));
+    };
+    audio.src = URL.createObjectURL(file);
 
-  const handleDragOver = (e) => {
-    e.preventDefault();
-  };
-
-  const handleDrop = (e) => {
-    e.preventDefault();
-    setDragging(false);
-    const file = e.dataTransfer.files[0];
-    if (file && file.type.startsWith('image/')) {
-      setFrontImage(file);
-      toast.success('Image uploaded successfully');
-    } else {
-      toast.error('Please drop a valid image file');
-    }
-  };
-
-  const handleAudioFile = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    
-    const validTypes = [
-      'audio/mpeg', // mp3
-      'audio/wav',  // wav
-      'audio/x-m4a', // m4a
-      'audio/ogg',  // ogg
-      'audio/aac',  // aac
-      'audio/x-aiff' // aiff
-    ];
-    
-    if (validTypes.includes(file.type)) {
-      setAudioFile(file);
-      toast.success('Audio file selected successfully');
-    } else {
-      toast.error('Please select a valid audio file (MP3, WAV, M4A, OGG)');
-      e.target.value = '';
-    }
+    toast.success('Audio file uploaded successfully');
   };
 
   const onChangeInputs = (e) => {
@@ -86,41 +57,62 @@ const InputPodcast = () => {
   };
 
   const handleSubmitPodcast = async () => {
-    if (!frontImage || !audioFile || !inputs.title || !inputs.category) {
+    if (!inputs.title || !inputs.category) {
       toast.error('Please fill all required fields');
       return;
     }
 
+    if (!frontImageUrl || !audioFileUrl) {
+      toast.error('Please upload both image and audio files');
+      return;
+    }
+
     setIsSubmitting(true);
-    const data = new FormData();
-    data.append('title', inputs.title);
-    data.append('description', inputs.description);
-    data.append('category', inputs.category);
-    data.append('frontImage', frontImage);
-    data.append('audioFile', audioFile);
 
     try {
-      const res = await axios.post('http://localhost:5000/api/v1/add-podcast', data, {
+      const podcastData = {
+        title: inputs.title,
+        description: inputs.description,
+        category: inputs.category,
+        frontImageUrl: frontImageUrl,
+        audioFileUrl: audioFileUrl
+      };
+
+      // Add tags if provided
+      if (inputs.tags) {
+        podcastData.tags = inputs.tags.split(',').map(tag => tag.trim()).filter(tag => tag);
+      }
+
+      const res = await axios.post(`${API_BASE_URL}/add-podcast`, podcastData, {
         headers: {
-          'Content-Type': 'multipart/form-data',
+          'Content-Type': 'application/json',
         },
         withCredentials: true,
       });
+
       toast.success(res.data.message);
-      setInputs({ title: '', description: '', category: '' });
-      setFrontImage(null);
-      setAudioFile(null);
-      document.getElementById('audioFile').value = '';
+
+      // Reset form
+      setInputs({ title: '', description: '', category: '', tags: '' });
+      setFrontImageUrl(null);
+      setAudioFileUrl(null);
+      setUploadStatus({ image: 'idle', audio: 'idle' });
+      setPreviewData({ imageFile: null, audioFile: null, audioDuration: null });
+
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to create podcast');
     } finally {
       setIsSubmitting(false);
     }
   };
-    const removeFile = () => {
-    setAudioFile(null);
-    fileInputRef.current.value = '';
+
+  const formatDuration = (seconds) => {
+    if (!seconds) return '';
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-50 py-12 px-4 sm:px-6 lg:px-8">
@@ -152,54 +144,26 @@ const InputPodcast = () => {
             {/* Thumbnail Upload Section */}
             <div className="lg:w-2/5 mb-8 lg:mb-0">
               <motion.div
-                whileHover={{ scale: 1.02 }}
-                className={`relative h-80 w-full rounded-xl border-3 border-dashed ${
-                  dragging ? 'border-indigo-400 bg-indigo-50/50' : 'border-indigo-200/50'
-                } transition-all duration-300 flex flex-col items-center justify-center overflow-hidden`}
-                onDragEnter={handleDragEnter}
-                onDragLeave={handleDragLeave}
-                onDragOver={handleDragOver}
-                onDrop={handleDrop}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
               >
-                {frontImage ? (
-                  <>
-                    <img
-                      src={URL.createObjectURL(frontImage)}
-                      alt="Thumbnail Preview"
-                      className="absolute inset-0 h-full w-full object-cover"
-                    />
-                    <button
-                      onClick={() => {
-                        setFrontImage(null);
-                        document.getElementById('thumbnailInput').value = '';
-                      }}
-                      className="absolute top-3 right-3 bg-white/90 hover:bg-white text-gray-800 p-2 rounded-full shadow-lg transition-all z-10"
-                    >
-                      <FiX className="text-lg" />
-                    </button>
-                    <div className="absolute inset-0 bg-black/10 hover:bg-black/20 transition-all flex items-center justify-center">
-                      <FiUpload className="text-white text-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
-                    </div>
-                  </>
-                ) : (
-                  <div className="text-center p-6">
-                    <div className="mx-auto mb-4 p-4 bg-indigo-100/50 rounded-full w-max">
-                      <FiUpload className="text-3xl text-indigo-500" />
-                    </div>
-                    <p className="text-gray-600 mb-2 font-medium">
-                      {dragging ? 'Drop your image here' : 'Drag & drop thumbnail'}
+                <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                  <FiImage className="mr-2 text-indigo-500" />
+                  Podcast Thumbnail <span className="text-red-500 ml-1">*</span>
+                </h3>
+                <AdvancedFileUpload
+                  onFileUpload={handleImageUpload}
+                  acceptedTypes={['image/jpeg', 'image/jpg', 'image/png', 'image/webp']}
+                  maxSize={10 * 1024 * 1024} // 10MB
+                  uploadType="image"
+                  placeholder="Drag and drop your podcast thumbnail here, or click to select"
+                />
+                {previewData.imageFile && (
+                  <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                    <p className="text-sm text-green-700">
+                      ✓ Image uploaded: {previewData.imageFile.name}
                     </p>
-                    <label className="cursor-pointer text-indigo-600 hover:text-indigo-800 font-medium text-sm">
-                      or click to browse
-                      <input
-                        type="file"
-                        id="thumbnailInput"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={handleChangeImage}
-                      />
-                    </label>
-                    <p className="text-xs text-gray-500 mt-3">Recommended: 1:1 ratio, 1500×1500px</p>
                   </div>
                 )}
               </motion.div>
@@ -214,7 +178,7 @@ const InputPodcast = () => {
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.4 }}
                 >
-                  <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
+                  <label htmlFor="title" className="text-sm font-medium text-gray-700 mb-2 flex items-center">
                     <FiType className="mr-2 text-indigo-500" />
                     Podcast Title <span className="text-red-500 ml-1">*</span>
                   </label>
@@ -236,7 +200,7 @@ const InputPodcast = () => {
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.5 }}
                 >
-                  <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
+                  <label htmlFor="description" className="text-sm font-medium text-gray-700 mb-2 flex items-center">
                     <FiAlignLeft className="mr-2 text-indigo-500" />
                     Description
                   </label>
@@ -259,56 +223,17 @@ const InputPodcast = () => {
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.6 }}
     >
-      <label
-        htmlFor="audioFile"
-        className="text-sm font-medium text-gray-700 mb-2 flex items-center"
-      >
+      <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
         <FiMic className="mr-2 text-indigo-500" />
         Audio File <span className="text-red-500 ml-1">*</span>
-      </label>
-
-      <div
-        onClick={triggerFileSelect}
-        className="relative px-4 py-3 border border-gray-300 rounded-lg bg-white/80 backdrop-blur-md hover:border-indigo-400 transition cursor-pointer flex justify-between items-center"
-      >
-        <span
-          className={`truncate ${
-            audioFile
-              ? 'text-indigo-600 font-medium'
-              : 'text-gray-500 italic'
-          }`}
-        >
-          {audioFile ? audioFile.name : 'Click to select an audio file'}
-        </span>
-        <FiUpload className="text-gray-400 ml-3" />
-      </div>
-
-      {/* Hidden input */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        id="audioFile"
-        name="audioFile"
-        accept=".mp3,.wav,.m4a,.ogg,.aac,.aiff"
-        className="hidden"
-        onChange={handleAudioFile}
-        required
+      </h3>
+      <AdvancedFileUpload
+        onFileUpload={handleAudioUpload}
+        acceptedTypes={['audio/mpeg', 'audio/wav', 'audio/mp4', 'audio/ogg', 'audio/aac']}
+        maxSize={100 * 1024 * 1024} // 100MB
+        uploadType="audio"
+        placeholder="Drag and drop your podcast audio file here, or click to select"
       />
-
-      {/* File info & remove */}
-      {audioFile && (
-        <div className="mt-2 flex items-center">
-          <span className="text-xs bg-indigo-100 text-indigo-800 px-2 py-1 rounded-full">
-            {Math.round(audioFile.size / 1024 / 1024)}MB
-          </span>
-          <button
-            onClick={removeFile}
-            className="ml-2 text-xs text-red-500 hover:text-red-700 flex items-center"
-          >
-            <FiX className="mr-1" /> Remove
-          </button>
-        </div>
-      )}
     </motion.div>
 
                   {/* Category Select */}
@@ -317,7 +242,7 @@ const InputPodcast = () => {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.7 }}
                   >
-                    <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
+                    <label htmlFor="category" className="text-sm font-medium text-gray-700 mb-2 flex items-center">
                       <FiList className="mr-2 text-indigo-500" />
                       Category <span className="text-red-500 ml-1">*</span>
                     </label>

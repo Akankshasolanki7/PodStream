@@ -3,6 +3,7 @@ import { useState,useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import axios from 'axios'
 import PodcastCard from '../components/PodcastCard/PodcastCard'
+import { API_BASE_URL } from '../config/api.js'
 
 const CategoriesPage = () => {
     const {cat}=useParams()
@@ -11,7 +12,7 @@ const CategoriesPage = () => {
   useEffect(() => {
     const fetch = async () => {
       try {
-        const res = await axios.get(`http://localhost:5000/api/v1/category/${cat}`, {
+        const res = await axios.get(`${API_BASE_URL}/category/${cat}`, {
           withCredentials: true,
         });
         setPodcasts(res.data.data);

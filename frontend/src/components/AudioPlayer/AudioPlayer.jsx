@@ -4,6 +4,7 @@ import { FaPlay, FaPause, FaForward, FaBackward, FaVolumeUp, FaVolumeMute } from
 import { AiOutlineClose } from 'react-icons/ai';
 import { useDispatch, useSelector } from 'react-redux';
 import { playerActions } from '../../store/player';
+import { STATIC_BASE_URL } from '../../config/api.js';
 
 const AudioPlayer = () => {
   const dispatch = useDispatch();

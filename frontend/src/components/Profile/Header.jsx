@@ -4,8 +4,9 @@ import { useDispatch } from 'react-redux';
 import { authActions } from '../../store/auth';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { FiLogOut, FiUser, FiSettings } from 'react-icons/fi';
-import { IoMdNotificationsOutline } from 'react-icons/io';
+import { FiLogOut } from 'react-icons/fi';
+import { API_BASE_URL } from '../../config/api.js';
+import HeaderSkeleton from '../Skeletons/HeaderSkeleton';
 
 const Header = () => {
   const [userData, setUserData] = useState(null);
@@ -16,10 +17,10 @@ const Header = () => {
   useEffect(() => {
     const fetchUserDetails = async () => {
       try {
-        const res = await axios.get("http://localhost:5000/api/v1/user-details", {
-          withCredentials: false,
+        const res = await axios.get(`${API_BASE_URL}/user-details`, {
+          withCredentials: true,
         });
-        setUserData(res.data.user);
+        setUserData(res.data.data);
       } catch (error) {
         console.error("Error fetching user details:", error.response?.data || error.message);
       } finally {
@@ -32,7 +33,7 @@ const Header = () => {
   const handleLogout = async () => {
     try {
       await axios.post(
-        'http://localhost:5000/api/v1/logout',
+        `${API_BASE_URL}/logout`,
         {},
         { withCredentials: true }
       );
@@ -46,7 +47,7 @@ const Header = () => {
   return (
     <header className="sticky top-0 z-50">
       {isLoading ? (
-        <div className="h-20 bg-gradient-to-r from-slate-100 to-slate-50 shadow-sm animate-pulse"></div>
+        <HeaderSkeleton />
       ) : userData ? (
         <motion.div 
           initial={{ opacity: 0, y: -20 }}

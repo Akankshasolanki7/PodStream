@@ -2,6 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
+import { API_BASE_URL } from '../config/api.js';
+import { getImageUrl } from '../utils/urlHelpers.js';
 
 const DescriptionPage = () => {
   const { id } = useParams();
@@ -9,7 +11,7 @@ const DescriptionPage = () => {
 
   useEffect(() => {
     const fetch = async () => {
-      const res = await axios.get(`http://localhost:5000/api/v1/get-podcast/${id}`, {
+      const res = await axios.get(`${API_BASE_URL}/get-podcast/${id}`, {
         withCredentials: true,
       });
       setPodcast(res.data.data);
@@ -31,7 +33,7 @@ const DescriptionPage = () => {
         <div className="w-full md:w-[320px] flex justify-center md:justify-start">
           <div className="w-full max-w-[300px] h-[250px] bg-white rounded-xl overflow-hidden shadow-xl transition-transform duration-300 hover:scale-105">
             <img
-              src={`http://localhost:5000/${podcast.frontImage}`}
+              src={getImageUrl(podcast.frontImage)}
               alt={podcast.title}
               className="w-full h-full object-contain"
             />

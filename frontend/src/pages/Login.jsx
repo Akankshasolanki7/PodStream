@@ -6,6 +6,7 @@ import axios from 'axios';
 import { useDispatch, useSelector } from 'react-redux';
 import { authActions } from '../store/auth';
 import ErrorPage from './ErrorPage';
+import { API_BASE_URL } from '../config/api.js';
 
 const Login = () => {
   const isLoggedIn = useSelector((state) => state.auth.isLoggedIn);
@@ -25,12 +26,30 @@ const Login = () => {
   const handleSubmit = async () => {
     try {
       const res = await axios.post(
-        'http://localhost:5000/api/v1/sign-in',
+        `${API_BASE_URL}/sign-in`,
         Values,
         { withCredentials: true }
       );
-      dispatch(authActions.login());
-      navigate('/profile');
+
+      // Dispatch login with user data and role
+      dispatch(authActions.login({
+        user: {
+          id: res.data.id,
+          username: res.data.username,
+          email: res.data.email,
+          role: res.data.role
+        },
+        role: res.data.role || 'user'
+      }));
+
+      toast.success(res.data.message || 'Login successful');
+
+      // Navigate based on role
+      if (res.data.role === 'admin') {
+        navigate('/');
+      } else {
+        navigate('/');
+      }
     } catch (error) {
       toast.error(error.response?.data?.message || 'Login failed');
     }
@@ -54,6 +73,12 @@ const Login = () => {
             <h2 className="text-lg text-gray-700 font-medium mt-6 mb-4 text-center">
               Login to your account
             </h2>
+
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+              <p className="text-sm text-blue-700 text-center">
+                <strong>Admin Login:</strong> Use email "root" and password "root"
+              </p>
+            </div>
 
             <div className="space-y-4">
               {/* Email */}
