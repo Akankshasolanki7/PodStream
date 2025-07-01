@@ -25,24 +25,40 @@ const App = () => {
     const dispatch = useDispatch();
     
  useEffect(() => {
-    
-    const fetch = async () => {
+    const checkAuth = async () => {
       try {
         const res = await axios.get(`${API_BASE_URL}/check-cookie`, {
           withCredentials: true
         });
-        //  console.log("Server response:", res.data);
-        if (res.data.message == true) {
-          dispatch(authActions.login());
+
+        if (res.data.message === true) {
+          // Get user details if authenticated
+          try {
+            const userRes = await axios.get(`${API_BASE_URL}/user-details`, {
+              withCredentials: true
+            });
+
+            if (userRes.data && userRes.data.data) {
+              dispatch(authActions.login({
+                user: userRes.data.data,
+                role: userRes.data.data.role || 'user'
+              }));
+            } else {
+              dispatch(authActions.login());
+            }
+          } catch (userError) {
+            console.error("User details fetch error:", userError);
+            dispatch(authActions.login()); // Fallback to basic login
+          }
         }
       } catch (error) {
-        // console.error('Cookie check failed:', error);
-         console.error("Fetch error:", error);
+        console.error("Auth check error:", error);
+        dispatch(authActions.logout()); // Ensure clean state on error
       }
     };
 
-    fetch();
-  }, []);
+    checkAuth();
+  }, [dispatch]);
   return (
     <AudioProvider>
       <div className=''>

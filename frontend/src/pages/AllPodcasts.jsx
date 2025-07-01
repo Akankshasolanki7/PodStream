@@ -43,20 +43,35 @@ const AllPodcasts = () => {
           sortOrder: 'desc'
         });
 
-        if (searchTerm) params.append('search', searchTerm);
-        if (selectedCategory) params.append('category', selectedCategory);
+        if (searchTerm && searchTerm.trim()) {
+          params.append('search', searchTerm.trim());
+        }
+        if (selectedCategory) {
+          params.append('category', selectedCategory);
+        }
 
         const res = await axios.get(`${API_BASE_URL}/get-podcasts?${params}`);
-        setPodcasts(res.data.data || []);
-        setTotalPages(res.data.totalPages || 1);
+
+        if (res.data && res.data.data) {
+          setPodcasts(res.data.data);
+          setTotalPages(res.data.totalPages || 1);
+        } else {
+          setPodcasts([]);
+          setTotalPages(1);
+        }
       } catch (err) {
+        console.error('Fetch podcasts error:', err);
         setError(err.response?.data?.message || 'Failed to load podcasts');
+        setPodcasts([]);
+        setTotalPages(1);
       } finally {
         setLoading(false);
       }
     };
 
-    const debounceTimer = setTimeout(fetchPodcasts, 300);
+    // Debounce search, immediate for other changes
+    const delay = searchTerm ? 500 : 100;
+    const debounceTimer = setTimeout(fetchPodcasts, delay);
     return () => clearTimeout(debounceTimer);
   }, [currentPage, searchTerm, selectedCategory, sortBy]);
 

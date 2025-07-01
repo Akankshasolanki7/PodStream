@@ -10,8 +10,13 @@ const authSlice = createSlice({
     reducers: {
         login(state, action) {
             state.isLoggedIn = true;
-            state.user = action.payload.user;
-            state.role = action.payload.role || 'user';
+            if (action.payload) {
+                state.user = action.payload.user || null;
+                state.role = action.payload.role || 'user';
+            } else {
+                state.user = null;
+                state.role = 'user';
+            }
         },
         logout(state) {
             state.isLoggedIn = false;
@@ -19,8 +24,10 @@ const authSlice = createSlice({
             state.role = 'user';
         },
         setUser(state, action) {
-            state.user = action.payload.user;
-            state.role = action.payload.role || 'user';
+            if (action.payload) {
+                state.user = action.payload.user || null;
+                state.role = action.payload.role || 'user';
+            }
         }
     }
 });

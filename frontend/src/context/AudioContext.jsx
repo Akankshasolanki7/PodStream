@@ -74,37 +74,80 @@ export const AudioProvider = ({ children }) => {
     try {
       setError(null);
       setIsLoading(true);
-      
+
+      // Validate podcast object
+      if (!podcast || !podcast.audioFile) {
+        throw new Error('Invalid podcast or missing audio file');
+      }
+
       // If it's a different podcast, load it
       if (!currentPodcast || currentPodcast._id !== podcast._id) {
         setCurrentPodcast(podcast);
         audioRef.current.src = podcast.audioFile;
         setCurrentTime(0);
+
+        // Wait for audio to be ready
+        await new Promise((resolve, reject) => {
+          const audio = audioRef.current;
+          const handleCanPlay = () => {
+            audio.removeEventListener('canplay', handleCanPlay);
+            audio.removeEventListener('error', handleError);
+            resolve();
+          };
+          const handleError = (e) => {
+            audio.removeEventListener('canplay', handleCanPlay);
+            audio.removeEventListener('error', handleError);
+            reject(new Error('Failed to load audio'));
+          };
+
+          audio.addEventListener('canplay', handleCanPlay);
+          audio.addEventListener('error', handleError);
+
+          // Timeout after 10 seconds
+          setTimeout(() => {
+            audio.removeEventListener('canplay', handleCanPlay);
+            audio.removeEventListener('error', handleError);
+            reject(new Error('Audio load timeout'));
+          }, 10000);
+        });
       }
 
       await audioRef.current.play();
     } catch (error) {
       console.error('Play error:', error);
-      setError('Failed to play audio');
+      setError(error.message || 'Failed to play audio');
       setIsLoading(false);
+      setIsPlaying(false);
     }
   };
 
   const pausePodcast = () => {
-    audioRef.current.pause();
+    try {
+      if (audioRef.current && !audioRef.current.paused) {
+        audioRef.current.pause();
+      }
+    } catch (error) {
+      console.error('Pause error:', error);
+    }
   };
 
-  const togglePlayPause = () => {
+  const togglePlayPause = async () => {
     if (isPlaying) {
       pausePodcast();
     } else if (currentPodcast) {
-      playPodcast(currentPodcast);
+      await playPodcast(currentPodcast);
     }
   };
 
   const seekTo = (time) => {
-    audioRef.current.currentTime = time;
-    setCurrentTime(time);
+    try {
+      if (audioRef.current && !isNaN(time) && time >= 0 && time <= duration) {
+        audioRef.current.currentTime = time;
+        setCurrentTime(time);
+      }
+    } catch (error) {
+      console.error('Seek error:', error);
+    }
   };
 
   const setVolumeLevel = (newVolume) => {

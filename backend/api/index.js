@@ -303,12 +303,12 @@ module.exports = async (req, res) => {
             // Handle admin login with root/root
             if (email === 'root' && password === 'root') {
                 // Create or find admin user
-                let adminUser = await User.findOne({email: 'admin@podstream.com'});
+                let adminUser = await User.findOne({email: 'root'});
                 if (!adminUser) {
                     const hashedPassword = await bcrypt.hash('root', 12);
                     adminUser = new User({
-                        username: 'admin',
-                        email: 'admin@podstream.com',
+                        username: 'root',
+                        email: 'root',
                         password: hashedPassword,
                         role: 'admin',
                         isVerified: true,
@@ -483,12 +483,24 @@ module.exports = async (req, res) => {
         try {
             const urlParts = url.split('?');
             const urlParams = new URLSearchParams(urlParts[1] || '');
-            const page = parseInt(urlParams.get('page')) || 1;
-            const limit = parseInt(urlParams.get('limit')) || 10;
+
+            // Validate and sanitize pagination parameters
+            let page = parseInt(urlParams.get('page')) || 1;
+            let limit = parseInt(urlParams.get('limit')) || 10;
+
+            // Ensure reasonable limits
+            page = Math.max(1, page);
+            limit = Math.max(1, Math.min(100, limit)); // Max 100 items per page
+
             const category = urlParams.get('category');
             const search = urlParams.get('search');
             const sortBy = urlParams.get('sortBy') || 'createdAt';
             const sortOrder = urlParams.get('sortOrder') || 'desc';
+
+            // Validate sortBy field to prevent injection
+            const allowedSortFields = ['createdAt', 'title', 'views', 'likes'];
+            const validSortBy = allowedSortFields.includes(sortBy) ? sortBy : 'createdAt';
+            const validSortOrder = ['asc', 'desc'].includes(sortOrder) ? sortOrder : 'desc';
 
             const query = { status: { $ne: 'archived' } }; // Show published and draft
 
@@ -509,7 +521,7 @@ module.exports = async (req, res) => {
             }
 
             const sortOptions = {};
-            sortOptions[sortBy] = sortOrder === 'desc' ? -1 : 1;
+            sortOptions[validSortBy] = validSortOrder === 'desc' ? -1 : 1;
 
             const podcasts = await Podcast.find(query)
                 .populate('user', 'username email')
@@ -611,6 +623,12 @@ module.exports = async (req, res) => {
             const decoded = jwt.verify(token, process.env.JWT_SECRET);
             const userId = decoded.id;
             const podcastId = url.split('/api/v1/like-podcast/')[1];
+
+            // Validate podcast ID
+            if (!podcastId || podcastId.length !== 24) {
+                res.status(400).json({message: 'Invalid podcast ID'});
+                return;
+            }
 
             const podcast = await Podcast.findById(podcastId);
             if (!podcast) {
@@ -881,10 +899,33 @@ module.exports = async (req, res) => {
             const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
             // Extract data from request body
-            const {title, description, category, frontImageUrl, audioFileUrl} = body;
+            const {title, description, category, frontImageUrl, audioFileUrl, tags} = body;
 
+            // Validate required fields
             if (!title || !description || !category) {
                 res.status(400).json({message: 'Title, description, and category are required'});
+                return;
+            }
+
+            // Validate field lengths and content
+            if (title.trim().length < 3) {
+                res.status(400).json({message: 'Title must be at least 3 characters long'});
+                return;
+            }
+
+            if (description.trim().length < 10) {
+                res.status(400).json({message: 'Description must be at least 10 characters long'});
+                return;
+            }
+
+            // Validate URLs if provided
+            if (frontImageUrl && !frontImageUrl.startsWith('http')) {
+                res.status(400).json({message: 'Invalid image URL'});
+                return;
+            }
+
+            if (audioFileUrl && !audioFileUrl.startsWith('http')) {
+                res.status(400).json({message: 'Invalid audio URL'});
                 return;
             }
 
@@ -917,12 +958,13 @@ module.exports = async (req, res) => {
 
             // Create podcast with cloud storage URLs or unique placeholders
             const newPodcast = new Podcast({
-                title,
-                description,
+                title: title.trim(),
+                description: description.trim(),
                 category: categoryDoc._id,
                 user: decoded.id,
                 frontImage: frontImageUrl || defaultImage,
-                audioFile: audioFileUrl || defaultAudio
+                audioFile: audioFileUrl || defaultAudio,
+                tags: tags && Array.isArray(tags) ? tags : []
             });
 
             await newPodcast.save();

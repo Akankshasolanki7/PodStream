@@ -64,31 +64,22 @@ const Navbar = () => {
         }
     };
 
-    // Check authentication status on component mount
+    // Close mobile menu when clicking outside
     useEffect(() => {
-        const checkAuth = async () => {
-            try {
-                const response = await fetch(`${API_BASE_URL}/user-details`, {
-                    credentials: 'include',
-                });
-
-                if (response.ok) {
-                    const data = await response.json();
-                    dispatch(authActions.login({
-                        user: data.data,
-                        role: data.data.role || 'user'
-                    }));
-                } else {
-                    dispatch(authActions.logout());
-                }
-            } catch (error) {
-                console.error('Auth check error:', error);
-                dispatch(authActions.logout());
+        const handleClickOutside = (event) => {
+            if (MobileNav && !event.target.closest('.mobile-nav')) {
+                setMobileNav(false);
+            }
+            if (showUserMenu && !event.target.closest('.user-menu')) {
+                setShowUserMenu(false);
             }
         };
 
-        checkAuth();
-    }, [dispatch]);
+        if (MobileNav || showUserMenu) {
+            document.addEventListener('mousedown', handleClickOutside);
+            return () => document.removeEventListener('mousedown', handleClickOutside);
+        }
+    }, [MobileNav, showUserMenu]);
 
     return (
         <nav className='px-4 md:px-8 lg:px-12 py-4 relative bg-white shadow-sm border-b border-gray-100'>
@@ -147,7 +138,7 @@ const Navbar = () => {
                             </Link>
                         </>
                     ) : (
-                        <div className="relative">
+                        <div className="relative user-menu">
                             <button
                                 onClick={() => setShowUserMenu(!showUserMenu)}
                                 className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-full hover:from-indigo-700 hover:to-purple-700 transition-all shadow-sm"
@@ -208,7 +199,7 @@ const Navbar = () => {
             </div>
             
             {/* Mobile Navigation */}
-            <div className={`fixed top-0 left-0 w-full h-screen bg-white ${MobileNav ? "translate-y-0" : "translate-y-[-100%]"} transition-transform duration-300 ease-in-out z-50 flex flex-col items-center justify-center`}>
+            <div className={`mobile-nav fixed top-0 left-0 w-full h-screen bg-white ${MobileNav ? "translate-y-0" : "translate-y-[-100%]"} transition-transform duration-300 ease-in-out z-50 flex flex-col items-center justify-center`}>
                 <div className='absolute top-6 right-6'>
                     <button 
                         onClick={closeMobileNav} 

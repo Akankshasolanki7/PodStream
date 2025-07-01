@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { FiPlay, FiPause, FiHeart, FiShare2, FiMoreHorizontal, FiUser, FiClock, FiEye, FiLoader } from 'react-icons/fi';
 import { toast } from 'react-toastify';
+import { useSelector } from 'react-redux';
 import { API_BASE_URL } from '../../config/api';
 import { useAudio } from '../../context/AudioContext';
 
@@ -13,6 +14,8 @@ const EnhancedPodcastCard = ({
   const [isLiked, setIsLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(podcast?.likes?.length || 0);
   const [isLoading, setIsLoading] = useState(false);
+
+  const isLoggedIn = useSelector((state) => state.auth.isLoggedIn);
 
   const {
     playPodcast,
@@ -41,21 +44,36 @@ const EnhancedPodcastCard = ({
 
   const handleLike = async (e) => {
     e.stopPropagation();
+
+    if (!isLoggedIn) {
+      toast.error('Please login to like podcasts');
+      return;
+    }
+
+    if (!podcast?._id) {
+      toast.error('Invalid podcast');
+      return;
+    }
+
     setIsLoading(true);
-    
+
     try {
       const response = await fetch(`${API_BASE_URL}/like-podcast/${podcast._id}`, {
         method: 'POST',
         credentials: 'include',
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         setIsLiked(data.liked);
         setLikeCount(prev => data.liked ? prev + 1 : prev - 1);
         toast.success(data.message);
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        toast.error(errorData.message || 'Failed to like podcast');
       }
     } catch (error) {
+      console.error('Like error:', error);
       toast.error('Failed to like podcast');
     } finally {
       setIsLoading(false);

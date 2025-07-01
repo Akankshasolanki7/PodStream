@@ -1,5 +1,5 @@
 // Advanced file upload component with cloud storage support
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { FiUpload, FiX, FiCheck, FiAlertCircle } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -17,6 +17,15 @@ const AdvancedFileUpload = ({
   const [uploadedFile, setUploadedFile] = useState(null);
   const [error, setError] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
+
+  // Cleanup preview URL on unmount to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
 
   const onDrop = useCallback(async (acceptedFiles, rejectedFiles) => {
     if (rejectedFiles.length > 0) {
@@ -37,6 +46,12 @@ const AdvancedFileUpload = ({
     setError(null);
     setUploadStatus('uploading');
     setUploadProgress(0);
+
+    // Clean up previous preview URL to prevent memory leaks
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(null);
+    }
 
     // Create preview URL for images
     if (uploadType === 'image' && file.type.startsWith('image/')) {
