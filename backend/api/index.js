@@ -577,15 +577,49 @@ module.exports = async (req, res) => {
     // Get podcasts by category
     if (url.startsWith('/api/v1/category/') && method === 'GET') {
         try {
-            const cat = url.split('/api/v1/category/')[1];
-            const categories = await Category.find({categoryName: cat}).populate({
+            const cat = decodeURIComponent(url.split('/api/v1/category/')[1]);
+
+            // Find all categories matching the name (case-insensitive)
+            const categories = await Category.find({
+                categoryName: { $regex: new RegExp(`^${cat}$`, 'i') }
+            }).populate({
                 path: "podcasts",
-                populate: {path: "category"}
+                populate: {
+                    path: "user",
+                    select: "username"
+                }
             });
-            res.status(200).json({data: categories});
+
+            // If multiple categories found, prefer the one with podcasts
+            let category = null;
+            if (categories.length > 0) {
+                category = categories.find(cat => cat.podcasts && cat.podcasts.length > 0) || categories[0];
+            }
+
+            if (!category) {
+                res.status(404).json({
+                    message: 'Category not found',
+                    data: []
+                });
+                return;
+            }
+
+            // Return the podcasts from the category
+            const podcasts = category.podcasts || [];
+
+            res.status(200).json({
+                message: `Podcasts in ${cat} category`,
+                data: podcasts,
+                category: cat,
+                count: podcasts.length
+            });
             return;
         } catch (error) {
-            res.status(500).json({error: error.message});
+            console.error('Category fetch error:', error);
+            res.status(500).json({
+                error: error.message,
+                message: 'Failed to fetch category podcasts'
+            });
             return;
         }
     }
@@ -929,11 +963,13 @@ module.exports = async (req, res) => {
                 return;
             }
 
-            // Find or create category with timeout
+            // Find or create category with timeout (case-insensitive)
             let categoryDoc;
             try {
                 categoryDoc = await Promise.race([
-                    Category.findOne({categoryName: category}),
+                    Category.findOne({
+                        categoryName: { $regex: new RegExp(`^${category}$`, 'i') }
+                    }),
                     new Promise((_, reject) =>
                         setTimeout(() => reject(new Error('Category query timeout')), 5000)
                     )
@@ -947,7 +983,9 @@ module.exports = async (req, res) => {
             }
 
             if (!categoryDoc) {
-                categoryDoc = new Category({categoryName: category, podcasts: []});
+                // Create category with proper capitalization
+                const properCategoryName = category.charAt(0).toUpperCase() + category.slice(1).toLowerCase();
+                categoryDoc = new Category({categoryName: properCategoryName, podcasts: []});
                 await categoryDoc.save();
             }
 
